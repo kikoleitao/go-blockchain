@@ -102,3 +102,122 @@ Hash: 0000016a6d677525c30144c66fb892a5e9cfc0daaa4ea7aa84b3dff5994d626e
 PoW Valid: true
 ```
 
+---
+
+## Part 3: Persistence and CLI
+
+### New Features
+
+- Blocks are now persisted to disk using BoltDB, ensuring the blockchain is saved between runs.
+- A command-line interface (CLI) has been introduced for user interaction.
+
+### How Persistence Works
+- Instead of keeping the blockchain in memory, each block is stored in a BoltDB bucket.
+- A special key ("l") keeps track of the latest block hash to allow appending new blocks efficiently.
+
+
+### Example Output (Part 3)
+
+This part showcases the blockchain with a simple **CLI interface** using commands to add and print blocks:
+
+```bash
+# First time running the blockchain: initializes and creates the genesis block
+go run main.go print
+
+No existing blockchain found
+0000342dc11a9fd1833ed9fe18ca5627cedc56507de6698acfcafd301398cb35
+Genesis created
+
+Prev. hash: 
+Data: Genesis
+Hash: 0000342dc11a9fd1833ed9fe18ca5627cedc56507de6698acfcafd301398cb35
+PoW: true
+```
+
+
+```bash
+# Add a new block with custom data
+go run main.go add -block "First Block"
+
+00003917bfa9185f32ffec0c2e8403befb9f6b22387dd25627ab4a005a54d6d3
+Added Block!
+```
+
+```bash
+# Print the current blockchain state
+go run main.go print
+
+# Note: Reading from storage, so no PoW calculation is done
+
+Prev. hash: 0000342dc11a9fd1833ed9fe18ca5627cedc56507de6698acfcafd301398cb35
+Data: First Block
+Hash: 00003917bfa9185f32ffec0c2e8403befb9f6b22387dd25627ab4a005a54d6d3
+PoW: true
+
+Prev. hash: 
+Data: Genesis
+Hash: 0000342dc11a9fd1833ed9fe18ca5627cedc56507de6698acfcafd301398cb35
+PoW: true
+```
+
+```bash
+# Add another block with sample transaction data
+go run main.go add -block "Send 10 BTC to Bob"
+
+0000012a3d9f8b6c1e86db86a900b469e09698de84f9bfad0dcaffbd00313fac
+Added Block!
+```
+
+
+```bash
+# Final blockchain state with all blocks
+go run main.go print
+
+Prev. hash: 00003917bfa9185f32ffec0c2e8403befb9f6b22387dd25627ab4a005a54d6d3
+Data: Send 10 BTC to Bob
+Hash: 0000012a3d9f8b6c1e86db86a900b469e09698de84f9bfad0dcaffbd00313fac
+PoW: true
+
+Prev. hash: 0000342dc11a9fd1833ed9fe18ca5627cedc56507de6698acfcafd301398cb35
+Data: First Block
+Hash: 00003917bfa9185f32ffec0c2e8403befb9f6b22387dd25627ab4a005a54d6d3
+PoW: true
+
+Prev. hash: 
+Data: Genesis
+Hash: 0000342dc11a9fd1833ed9fe18ca5627cedc56507de6698acfcafd301398cb35
+PoW: true
+```
+
+### BadgerDB Files in `/tmp/blocks`
+
+When running the blockchain, BadgerDB stores its internal data in various files in the `/tmp/blocks` directory. Below is an explanation of each file and its role:
+
+#### `.sst` Files (e.g., `000001.sst`, `000002.sst`, etc.)
+- **SST = Sorted String Table**
+- These are **immutable** files that store key-value pairs in **sorted order**.
+- They are created when a MemTable (in-memory data) is flushed to disk or during the compaction process.
+- BadgerDB uses these files to provide fast lookups for data.
+
+#### `.vlog` Files (e.g., `000005.vlog`, `000006.vlog`, etc.)
+- **Value Log files**
+- These files store **large value data**. While `.sst` files store keys, `.vlog` files store large associated values.
+- When a key in a `.sst` file points to a large value, that value is stored in the `.vlog` file.
+- These files are crucial for handling large data that doesn't fit into the `.sst` files.
+
+#### `MANIFEST`
+- The **Manifest** file tracks the **current state of the database**, including:
+  - The versions of the tables.
+  - Which tables are active.
+  - Information about compactions and other internal operations.
+- This file is critical to BadgerDB, and any corruption in it can prevent the database from starting.
+
+#### `DISCARD`
+- This file helps BadgerDB with **garbage collection** by tracking **discarded or obsolete vlog data**.
+- The content of this file helps BadgerDB decide what data can be safely deleted to free up disk space.
+
+#### `KEYREGISTRY`
+- This file stores information about **data encryption keys** if encryption is enabled in the database.
+- If encryption is not used, this file may still exist as a placeholder.
+
+---

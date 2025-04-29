@@ -18,7 +18,7 @@ import (
 // - Repeat until a valid hash is found
 
 // Difficulty defines how hard the proof-of-work puzzle is (number of leading zeros).
-const Difficulty = 20
+const Difficulty = 18
 
 // ProofOfWork holds the block and the target needed for mining.
 type ProofOfWork struct {
