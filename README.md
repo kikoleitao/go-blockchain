@@ -27,19 +27,17 @@ Each block's hash is generated using SHA-256 over its `Data` and `PrevHash`.
   - Appends the block to the chain.
 - When run, the program prints the data, previous hash, and hash of each block in the chain.
 
-### How to Run
+
+### Example Output (Part 1)
 
 ```bash
+
 # Initialize the Go module
 go mod init github.com/kikoleitao/go-blockchain
 
 # Run the main program
 go run main.go
-```
 
-### Example Output (Part 1)
-
-```bash
 Previous Hash:
 Data in Block: Genesis
 Hash: 81ddc8d248b2dccdd3fdd5e84f0cad62b08f2d10b57f9a831c13451e5c5c80a5
@@ -81,6 +79,10 @@ Target = 2^236
 ### Example Output (Part 2)
 
 ```bash
+
+# Run the main program
+go run main.go
+
 Data in Block: Genesis
 Previous Hash:
 Hash: 00000e8654e72084186f93e1a49c3f71a11d342d489ba82edc078b8b5d4ca515
