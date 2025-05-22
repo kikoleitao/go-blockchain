@@ -2,22 +2,32 @@ package blockchain
 
 import (
 	"bytes"
+	"crypto/sha256"
 	"encoding/gob"
 	"log"
 )
 
-// Block represents each 'item' in the blockchain.
 type Block struct {
-	Hash     []byte // Unique identifier for the block (result of PoW)
-	Data     []byte // Actual data stored in the block (e.g., transactions)
-	PrevHash []byte // Hash of the previous block in the chain
-	Nonce    int    // Arbitrary number used to generate the valid hash
+	Hash         []byte
+	Transactions []*Transaction
+	PrevHash     []byte
+	Nonce        int
 }
 
-// CreateBlock generates a new Block using provided data and previous block hash.
-// It also runs the Proof of Work to find a valid hash and nonce.
-func CreateBlock(data string, prevHash []byte) *Block {
-	block := &Block{[]byte{}, []byte(data), prevHash, 0}
+func (b *Block) HashTransactions() []byte {
+	var txHashes [][]byte
+	var txHash [32]byte
+
+	for _, tx := range b.Transactions {
+		txHashes = append(txHashes, tx.ID)
+	}
+	txHash = sha256.Sum256(bytes.Join(txHashes, []byte{}))
+
+	return txHash[:]
+}
+
+func CreateBlock(txs []*Transaction, prevHash []byte) *Block {
+	block := &Block{[]byte{}, txs, prevHash, 0}
 	pow := NewProof(block)
 	nonce, hash := pow.Run()
 
@@ -27,9 +37,8 @@ func CreateBlock(data string, prevHash []byte) *Block {
 	return block
 }
 
-// Genesis creates the first block in the blockchain, known as the "Genesis Block".
-func Genesis() *Block {
-	return CreateBlock("Genesis", []byte{})
+func Genesis(coinbase *Transaction) *Block {
+	return CreateBlock([]*Transaction{coinbase}, []byte{})
 }
 
 func (b *Block) Serialize() []byte {
@@ -43,7 +52,6 @@ func (b *Block) Serialize() []byte {
 	return res.Bytes()
 }
 
-// Deserialize decodes a byte slice into a Block struct.
 func Deserialize(data []byte) *Block {
 	var block Block
 
@@ -56,7 +64,6 @@ func Deserialize(data []byte) *Block {
 	return &block
 }
 
-// Handle panics if an error is encountered (for simplifying error handling).
 func Handle(err error) {
 	if err != nil {
 		log.Panic(err)

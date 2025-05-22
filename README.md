@@ -35,6 +35,8 @@ Each block's hash is generated using SHA-256 over its `Data` and `PrevHash`.
 # Initialize the Go module
 go mod init github.com/kikoleitao/go-blockchain
 
+go mod tidy
+
 # Run the main program
 go run main.go
 
@@ -223,3 +225,125 @@ When running the blockchain, BadgerDB stores its internal data in various files 
 - If encryption is not used, this file may still exist as a placeholder.
 
 ---
+
+## Part 4: Transactions and UTXO Model
+
+### New Features
+
+- **Transactions**: Introduced a `Transaction` structure consisting of inputs and outputs, enabling the transfer of value between addresses.
+- **Coinbase Transactions**: Implemented coinbase transactions to reward miners with newly minted coins.
+- **UTXO (Unspent Transaction Output) Model**: Adopted the UTXO model to track unspent outputs, ensuring accurate balance calculations and preventing double-spending.
+
+### Transaction Structure
+
+Each transaction comprises:
+
+- **Inputs**: References to previous transaction outputs, indicating the source of funds.
+- **Outputs**: New outputs specifying the recipient and the amount to be transferred.
+
+This structure allows for the chaining of transactions, where outputs from previous transactions become inputs for new ones.
+
+### Coinbase Transactions
+
+A coinbase transaction is a special transaction that introduces new coins into circulation. It has no inputs and is typically the first transaction in a block. In this implementation:
+
+- **Inputs**: Set to `nil` or empty, as there are no previous outputs to reference.
+- **Outputs**: Assign the mining reward to the specified address.
+
+```go
+func CoinbaseTx(to, data string) *Transaction {
+	if data == "" {
+		data = fmt.Sprintf("Reward to '%s'", to)
+	}
+	txin := TxInput{ID: []byte{}, Out: -1, Sig: data}
+	txout := TxOutput{Value: 100, PubKey: to}
+	tx := Transaction{ID: nil, Inputs: []TxInput{txin}, Outputs: []TxOutput{txout}}
+	tx.SetID()
+	return &tx
+}
+```
+
+### Creating and Adding Transactions
+
+To create a new transaction:
+
+- Find spendable outputs from the blockchain.
+- Create inputs by referencing those outputs.
+- Create outputs for the recipient and change back to the sender if necessary.
+- Add the transaction to a new block.
+
+```go
+  func NewTransaction(from, to string, amount int, chain *BlockChain) *Transaction {
+    var inputs []TxInput
+    var outputs []TxOutput
+
+    acc, validOutputs := chain.FindSpendableOutputs(from, amount)
+    if acc < amount {
+      log.Panic("Error: Not enough funds")
+    }
+
+    for txid, outs := range validOutputs {
+      txID, err := hex.DecodeString(txid)
+      Handle(err)
+      for _, out := range outs {
+        input := TxInput{ID: txID, Out: out, Sig: from}
+        inputs = append(inputs, input)
+      }
+    }
+
+    outputs = append(outputs, TxOutput{Value: amount, PubKey: to})
+    if acc > amount {
+      outputs = append(outputs, TxOutput{Value: acc - amount, PubKey: from})
+    }
+
+    tx := Transaction{ID: nil, Inputs: inputs, Outputs: outputs}
+    tx.SetID()
+    return &tx
+  }
+```
+
+### Example CLI Commands
+
+```bash
+
+# Create a new blockchain and assign the genesis block reward to 'kiko'
+go run main.go createblockchain -address kiko
+
+0005f8064b16ddfbe20f336c8620d508f410e12cf4d3b43fde94bfb9105abb15
+Genesis created
+Finished!
+
+# Check the balance of 'kiko'
+go run main.go getbalance -address kiko
+
+Balance of kiko: 100
+
+# Send 5 coins from 'kiko' to 'alice'
+go run main.go send -from kiko -to alice -amount 5
+
+000baaa094fd0904d2af091066549f6d764e648577743f3c483f8639dda91b13
+Success!
+
+# Check balances after the transaction
+go run main.go getbalance -address kiko
+
+Balance of kiko: 95
+
+go run main.go getbalance -address alice
+
+Balance of alice: 5
+
+# Print the blockchain to see the new transaction
+go run main.go printchain
+
+# Transaction Block
+Prev. hash: 0005f8064b16ddfbe20f336c8620d508f410e12cf4d3b43fde94bfb9105abb15
+Hash: 000baaa094fd0904d2af091066549f6d764e648577743f3c483f8639dda91b13
+PoW: true
+
+# Genesis Block
+Prev. hash: 
+Hash: 0005f8064b16ddfbe20f336c8620d508f410e12cf4d3b43fde94bfb9105abb15
+PoW: true
+
+```
