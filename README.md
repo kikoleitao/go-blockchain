@@ -345,5 +345,103 @@ PoW: true
 Prev. hash: 
 Hash: 0005f8064b16ddfbe20f336c8620d508f410e12cf4d3b43fde94bfb9105abb15
 PoW: true
-
 ```
+
+---
+
+## Part 5: Wallet Module with Digital Signatures
+
+### New Features
+
+- **Wallet Generation**: Each user can now generate a wallet that contains a secure ECDSA key pair.
+- **Base58Check Address Encoding**: Wallet addresses are encoded using Bitcoin’s Base58 format for user-friendly representation.
+- **Digital Signatures**: Transactions are cryptographically signed with the sender’s private key and verified with their public key.
+- **Ownership Enforcement**: Only the owner of the private key can authorize the spending of associated funds, ensuring UTXO security.
+
+---
+
+### Wallet Creation
+
+Every wallet generates a key pair on the `P-256` elliptic curve:
+- The **public key** is hashed with `SHA-256` and then `RIPEMD-160`.
+- The resulting hash is Base58Check-encoded to create a Bitcoin-style address.
+
+```bash
+$ go run main.go createwallet
+New address is: 1BHx7gb9eTVX8APEFGRUw8XLj6swmyMp47
+
+$ go run main.go createwallet
+New address is: 1EzE68fDYRpmYx9dpNgMAQWZVaTSgjCkJL
+```
+
+---
+
+### Blockchain Initialization with Wallet Address
+
+When creating a blockchain, the genesis block reward is assigned to a wallet address:
+
+```bash
+$ go run main.go createblockchain -address 1BHx7gb9eTVX8APEFGRUw8XLj6swmyMp47
+Genesis created
+```
+
+This ensures that coins are initially tied to a specific wallet and can only be spent by its private key holder.
+
+---
+
+### Secure Transactions
+
+Transactions are now signed using the sender’s private key:
+- Every `TxInput` includes a `Signature` and `PubKey`.
+- Before a transaction is added to a block, the blockchain verifies its validity using `ecdsa.Verify`.
+
+Example transaction:
+
+```bash
+$ go run main.go send -from 1BHx7gb9eTVX8APEFGRUw8XLj6swmyMp47 -to 1EzE68fDYRpmYx9dpNgMAQWZVaTSgjCkJL -amount 30
+Success!
+```
+
+The transaction is signed and added only if the signature is valid and the funds are sufficient.
+
+---
+
+### Balance Verification
+
+You can check the balance of any address at any time using:
+
+```bash
+$ go run main.go getbalance -address 1BHx7gb9eTVX8APEFGRUw8XLj6swmyMp47
+Balance of 1BHx7gb9eTVX8APEFGRUw8XLj6swmyMp47: 50
+
+$ go run main.go getbalance -address 1EzE68fDYRpmYx9dpNgMAQWZVaTSgjCkJL
+Balance of 1EzE68fDYRpmYx9dpNgMAQWZVaTSgjCkJL: 50
+```
+
+---
+
+### Transaction Details in Blockchain
+
+When printing the blockchain, transaction details now include:
+- **TXID**, input/output values,
+- **Signatures**,
+- **Public Keys**, enabling full traceability and verification.
+
+Example:
+
+```bash
+--- Transaction 40c441adcd...:
+   Input:
+     TXID:     37083470...
+     Out:      1
+     Signature: 6a53b0...
+     PubKey:    b26152...
+   Output 0:
+     Value:    20
+     Script:   996c45...
+   Output 1:
+     Value:    50
+     Script:   70e5eb...
+```
+
+This structure mimics Bitcoin transactions and enforces cryptographic ownership over funds.
