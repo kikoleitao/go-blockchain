@@ -189,7 +189,7 @@ func (tx *Transaction) Verify(prevTXs map[string]Transaction) bool {
 			Y:     &y,
 		}
 
-		if ecdsa.Verify(&rawPubKey, txCopy.ID, &r, &s) {
+		if !ecdsa.Verify(&rawPubKey, txCopy.ID, &r, &s) {
 			return false
 		}
 	}
