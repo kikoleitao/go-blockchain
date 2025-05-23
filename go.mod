@@ -1,8 +1,14 @@
 module github.com/kikoleitao/go-blockchain
 
-go 1.22.2
+go 1.23.0
 
-require github.com/dgraph-io/badger/v3 v3.2103.5
+toolchain go1.23.9
+
+require (
+	github.com/dgraph-io/badger/v3 v3.2103.5
+	github.com/mr-tron/base58 v1.2.0
+	golang.org/x/crypto v0.38.0
+)
 
 require (
 	github.com/cespare/xxhash v1.1.0 // indirect
@@ -18,6 +24,6 @@ require (
 	github.com/klauspost/compress v1.12.3 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	go.opencensus.io v0.22.5 // indirect
-	golang.org/x/net v0.0.0-20201021035429-f5854403a974 // indirect
-	golang.org/x/sys v0.0.0-20221010170243-090e33056c14 // indirect
+	golang.org/x/net v0.21.0 // indirect
+	golang.org/x/sys v0.33.0 // indirect
 )
