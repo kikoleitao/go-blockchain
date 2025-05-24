@@ -445,3 +445,169 @@ Example:
 ```
 
 This structure mimics Bitcoin transactions and enforces cryptographic ownership over funds.
+
+
+---
+
+
+## Part 6: UTXO Persistence Layer
+
+### New Features
+
+- **Persistent UTXO Set**: Introduced a dedicated UTXOSet structure that persists UTXOs using BadgerDB.
+- **Efficient Lookups**: UTXO queries no longer require scanning the entire blockchain, significantly improving performance.
+- **Reindexing Capability**: Added CLI support to rebuild the UTXO set using a full chain scan (reindexutxo command).
+- **Automatic Updates**: Each time a block is added, the UTXOSet is automatically updated to reflect new outputs and remove spent ones.
+
+### UTXOSet Structure
+
+UTXO entries are stored in BadgerDB with:
+
+- Keys: prefixed with "utxo-" followed by the transaction ID.
+- Values: serialized TxOutputs (which wraps a list of TxOutput structs).
+
+The UTXOSet handles:
+
+- Querying available outputs (FindUTXO, FindSpendableOutputs)
+- Adding/removing outputs upon new transactions
+- Reindexing the database to restore from full chain state
+
+```go
+type UTXOSet struct {
+	Blockchain *BlockChain
+}
+
+func (u UTXOSet) Reindex() {
+	// Clears the current UTXO set and repopulates it from blockchain data
+}
+```
+
+### Integration with CLI
+A new command reindexutxo is now available to regenerate the UTXO set:
+
+```go
+func (cli *CommandLine) reindexUTXO() {
+	chain := blockchain.ContinueBlockChain("")
+	defer chain.Database.Close()
+	UTXOSet := blockchain.UTXOSet{Blockchain: chain}
+	UTXOSet.Reindex()
+	fmt.Printf("Done! There are %d transactions in the UTXO set.\n", UTXOSet.CountTransactions())
+}
+```
+
+
+### Example CLI Usage
+
+```bash
+# Create two wallets
+go run main.go createwallet
+New address is: 1JhZGc2RuZGZYxBaN87JnH8ZQCMQUpPKRd
+
+go run main.go createwallet
+New address is: 17dAwebWrUdn9VuGi24Lj2HQvCDYHBKs95
+
+# Create blockchain with genesis reward to first address
+go run main.go createblockchain -address 1JhZGc2RuZGZYxBaN87JnH8ZQCMQUpPKRd
+Genesis created
+
+# Check balance - will be zero because UTXO index hasn't been built yet
+go run main.go getbalance -address 1JhZGc2RuZGZYxBaN87JnH8ZQCMQUpPKRd
+Balance of 1JhZGc2RuZGZYxBaN87JnH8ZQCMQUpPKRd: 0
+
+# Reindex UTXO set from the full chain
+go run main.go reindexutxo
+Done! There are 1 transactions in the UTXO set.
+
+# Now balance is visible
+go run main.go getbalance -address 1JhZGc2RuZGZYxBaN87JnH8ZQCMQUpPKRd
+Balance of 1JhZGc2RuZGZYxBaN87JnH8ZQCMQUpPKRd: 100
+
+# Send 20 coins to the second address
+go run main.go send -from 1JhZGc2RuZGZYxBaN87JnH8ZQCMQUpPKRd -to 17dAwebWrUdn9VuGi24Lj2HQvCDYHBKs95 -amount 30
+Success!
+
+# View blockchain to confirm transaction
+go run main.go printchain
+
+# Check balances
+go run main.go getbalance -address 1JhZGc2RuZGZYxBaN87JnH8ZQCMQUpPKRd
+Balance of 1JhZGc2RuZGZYxBaN87JnH8ZQCMQUpPKRd: 70
+
+go run main.go getbalance -address 17dAwebWrUdn9VuGi24Lj2HQvCDYHBKs95
+Balance of 17dAwebWrUdn9VuGi24Lj2HQvCDYHBKs95: 30
+
+# Reindex the UTXO set again
+go run main.go reindexutxo
+Done! There are 1 transactions in the UTXO set.
+
+# Explanation:
+# Even though two transactions now exist on-chain, only ONE transaction currently contains UNspent outputs.
+# The genesis transaction has been fully spent and its outputs consumed.
+# The new transaction created two outputs (20 + 80), which are both still unspent and belong to ONE transaction.
+# Hence: 1 transaction in the UTXO set.
+
+
+# Send 40 more coins from the original address
+go run main.go send -to 17dAwebWrUdn9VuGi24Lj2HQvCDYHBKs95 -from 1JhZGc2RuZGZYxBaN87JnH8ZQCMQUpPKRd -amount 40
+Success!
+
+# Reindex the UTXO set to reflect latest state
+go run main.go reindexutxo
+Done! There are 2 transactions in the UTXO set.
+
+# Why 2 now?
+# The most recent transaction also generated unspent outputs.
+# With two transactions now holding UTXOs (from the 20 and 40 coin sends), 
+# the UTXO set grows to include both transaction IDs.
+
+
+
+# Print the full blockchain to inspect transaction history and linkage
+go run main.go printchain
+
+Hash: 000a0114ae260a850ea093f702cc96b03e8b9b01257b1cc7e56ba7b0e7ed17d7
+Prev. hash: 000796f4501d50628086e7476c76d5d0885281e55232a1927e8625eb386437d3
+PoW: true
+--- Transaction 5eda6cfa9ca57d59fbe03be46771df1e1398af853d291691e6275efec0876130:
+     Input 0:
+       TXID:     54ca9887c36fa51d87d8c23996d7e77d586607f6e5eb9dea9ea8c782c508ad59
+       Out:       1
+       Signature: 059d3abe02a3348401e59c7a34a2046dc71c52a3fc497a4437748029f3b94f8279b58141c30170e8ce90eb7e37e93e97caa6be3780ed1caef6951507c2fae201
+       PubKey:    55ddd46cd023773c20cb77cc4a6c9eb8862beb021efe7e004ca0afa8f48bac65a90fc46f0f868b3c6dfeec8464cf883e7544be52cccf57eda9a2b7cc34bedd9f
+     Output 0:
+       Value:  40
+       Script: 0f4fc9e97cca9b8dd90382d6cdb276949aab64c5
+     Output 1:
+       Value:  30
+       Script: 7a504b32f5861a9245e504d3ebf3a8c52ed5e1b2
+
+Hash: 000796f4501d50628086e7476c76d5d0885281e55232a1927e8625eb386437d3
+Prev. hash: 0008f74220af212849a6fc6f8a53b8b0f71c70d61a9916ea2f4fb0577bc0f763
+PoW: true
+--- Transaction 54ca9887c36fa51d87d8c23996d7e77d586607f6e5eb9dea9ea8c782c508ad59:
+     Input 0:
+       TXID:     968f90f724f8aaac7bbe890afbcf710cbf74e99dd6c1a6b61982d3fb60445f0b
+       Out:       0
+       Signature: 93d511f6f98c05dbb35b9bf641798a2432abb137c2b7f62bc4dce62a104816ae13bba7030e302ef22cb25d8ba9c2eb4f19e644237204d9d6e57dac011ab63e03
+       PubKey:    55ddd46cd023773c20cb77cc4a6c9eb8862beb021efe7e004ca0afa8f48bac65a90fc46f0f868b3c6dfeec8464cf883e7544be52cccf57eda9a2b7cc34bedd9f
+     Output 0:
+       Value:  30
+       Script: 0f4fc9e97cca9b8dd90382d6cdb276949aab64c5
+     Output 1:
+       Value:  70
+       Script: 7a504b32f5861a9245e504d3ebf3a8c52ed5e1b2
+
+Hash: 0008f74220af212849a6fc6f8a53b8b0f71c70d61a9916ea2f4fb0577bc0f763
+Prev. hash: 
+PoW: true
+--- Transaction 968f90f724f8aaac7bbe890afbcf710cbf74e99dd6c1a6b61982d3fb60445f0b:
+     Input 0:
+       TXID:     
+       Out:       -1
+       Signature: 
+       PubKey:    4669727374205472616e73616374696f6e2066726f6d2047656e65736973
+     Output 0:
+       Value:  100
+       Script: 7a504b32f5861a9245e504d3ebf3a8c52ed5e1b2
+
+```
