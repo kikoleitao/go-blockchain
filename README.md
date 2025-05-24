@@ -611,3 +611,131 @@ PoW: true
        Script: 7a504b32f5861a9245e504d3ebf3a8c52ed5e1b2
 
 ```
+
+
+---
+
+## Part 7: Merkle Tree
+
+### New Features
+
+- **Merkle Tree Construction**: Each block includes a Merkle Root, computed from the hashes of all transactions in the block.
+- **Compact Integrity Proof**: Only the Merkle Root is stored in the block header, enabling efficient tamper detection and transaction verification.
+
+### What is a Merkle Tree?
+
+A Merkle Tree is a binary hash tree structure:
+
+- **Leaves** are hashes of each transaction.
+- **Internal nodes** are hashes of their children.
+
+If a single transaction changes, the Merkle Root changes too, ensuring integrity.
+
+### Implementation
+
+```go
+func (b *Block) HashTransactions() []byte {
+    var txHashes [][]byte
+    for _, tx := range b.Transactions {
+        txHashes = append(txHashes, tx.Serialize())
+    }
+    tree := NewMerkleTree(txHashes)
+    return tree.RootNode.Data
+}
+```
+
+Each block computes this Merkle Root and includes it in the data hashed during Proof-of-Work.
+
+### How the Tree is Built
+
+```go
+func NewMerkleTree(data [][]byte) *MerkleTree {
+    if len(data)%2 != 0 {
+        data = append(data, data[len(data)-1])
+    }
+    // Leaf nodes
+    for _, dat := range data {
+        node := NewMerkleNode(nil, nil, dat)
+        nodes = append(nodes, *node)
+    }
+    // Internal levels
+    for range len(data)/2 {
+        for j := 0; j < len(nodes); j += 2 {
+            node := NewMerkleNode(&nodes[j], &nodes[j+1], nil)
+            level = append(level, *node)
+        }
+        nodes = level
+    }
+    return &MerkleTree{&nodes[0]}
+}
+```
+
+### Sample CLI Run
+
+```bash
+# Create a new wallet (generates a public-private key pair and returns a Base58Check-encoded address)
+$ go run main.go createwallet
+New address is: 1QExz3fgCL3WUdDZ5Z3hW8aQBfDYKvMSfH
+
+# Create another wallet for a second user
+$ go run main.go createwallet
+New address is: 1491JW6uFNVaqV8ewGLXVD36f9ow6uFTmo
+
+# Initialize the blockchain with a genesis block, rewarding the first wallet with 20 coins
+$ go run main.go createblockchain -address 1QExz3fgCL3WUdDZ5Z3hW8aQBfDYKvMSfH
+Genesis created
+Finished!
+
+# Check the balance of the first wallet (should be 20 from the genesis reward)
+$ go run main.go getbalance -address 1QExz3fgCL3WUdDZ5Z3hW8aQBfDYKvMSfH
+Balance of 1QExz3fgCL3WUdDZ5Z3hW8aQBfDYKvMSfH: 20
+
+# Print the blockchain — shows the genesis block with a single coinbase transaction of 20 coins
+$ go run main.go printchain
+Hash: ...
+Prev. hash:
+PoW: true
+--- Transaction ...:
+     Output 0: Value: 20
+
+# Send 5 coins from the first wallet to the second wallet
+# Note: Another coinbase transaction is also added in the new block, rewarding the miner (i.e., first wallet) with 20 more coins
+$ go run main.go send -from 1QExz3fgCL3WUdDZ5Z3hW8aQBfDYKvMSfH -to 1491JW6uFNVaqV8ewGLXVD36f9ow6uFTmo -amount 5
+Success!
+
+# Check the balance of the first wallet again:
+# - Original 20 coins
+# - Sent 5 coins (remaining 15)
+# - Received 15 back as change
+# - Received 20 coins as a coinbase reward
+# => 15 (change) + 20 (coinbase) = 35
+$ go run main.go getbalance -address 1QExz3fgCL3WUdDZ5Z3hW8aQBfDYKvMSfH
+Balance of 1QExz3fgCL3WUdDZ5Z3hW8aQBfDYKvMSfH: 35
+
+# Check the balance of the second wallet (should now be 5)
+$ go run main.go getbalance -address 1491JW6uFNVaqV8ewGLXVD36f9ow6uFTmo
+Balance of 1491JW6uFNVaqV8ewGLXVD36f9ow6uFTmo: 5
+
+# Print the blockchain again — it now contains two blocks:
+# - The genesis block (20 coins to the first address)
+# - A transaction block with:
+#   - 20 coinbase reward to the first address
+#   - A transaction sending 5 to the second address and 15 back to the sender
+$ go run main.go printchain
+Hash: ...
+Prev. hash: ...
+PoW: true
+--- Transaction ...:
+     Output 0: Value: 20  # Coinbase to sender
+--- Transaction ...:
+     Output 0: Value: 5   # To second wallet
+     Output 1: Value: 15  # Change back to sender
+
+Hash: ...
+Prev. hash:
+PoW: true
+--- Transaction ...:
+     Output 0: Value: 20  # Genesis coinbase to sender
+```
+
+This demo illustrates block creation, balance updates, and transaction outputs backed by Merkle Root hashing.
