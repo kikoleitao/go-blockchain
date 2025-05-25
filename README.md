@@ -2,10 +2,17 @@
 
 ## Overview
 
-This project is a simple blockchain implementation in Go, developed in two stages:
+This project is a complete blockchain implementation in Go, designed to mirror the fundamental architecture of Bitcoin, gradually evolving through multiple stages:
 
-- **Part 1**: A basic blockchain structure linking blocks via hashes.
-- **Part 2**: Adding Proof-of-Work (PoW) to secure block creation.
+- **Part 1**: A basic blockchain that links blocks using SHA-256 hashes.
+- **Part 2**: Adds Proof-of-Work (PoW) to secure block creation.
+- **Part 3**: Introduces persistent storage using BadgerDB and a CLI for block manipulation.
+- **Part 4**: Implements transactions and the UTXO (Unspent Transaction Output) model.
+- **Part 5**: Adds wallet functionality using ECDSA key pairs and Base58Check address encoding, along with transaction signing and verification.
+- **Part 6**: Optimizes UTXO management with a persistent, queryable UTXO set and CLI command for reindexing.
+- **Part 7**: Enhances block integrity with Merkle Tree support, storing the Merkle Root in the block header to summarize all transactions.
+
+
 
 ## Part 1: Basic Prototype
 
