@@ -2,15 +2,15 @@
 
 ## Overview
 
-This project is a complete blockchain implementation in Go, designed to mirror the fundamental architecture of Bitcoin, gradually evolving through multiple stages:
+This project is a complete blockchain implementation in Go, designed to mirror the fundamental architecture of Bitcoin, gradually evolving through multiple stages.
 
-- **Part 1**: A basic blockchain that links blocks using SHA-256 hashes.
-- **Part 2**: Adds Proof-of-Work (PoW) to secure block creation.
-- **Part 3**: Introduces persistent storage using BadgerDB and a CLI for block manipulation.
-- **Part 4**: Implements transactions and the UTXO (Unspent Transaction Output) model.
-- **Part 5**: Adds wallet functionality using ECDSA key pairs and Base58Check address encoding, along with transaction signing and verification.
-- **Part 6**: Optimizes UTXO management with a persistent, queryable UTXO set and CLI command for reindexing.
-- **Part 7**: Enhances block integrity with Merkle Tree support, storing the Merkle Root in the block header to summarize all transactions.
+- [**Part 1**](#part-1-basic-prototype): A basic blockchain that links blocks using SHA-256 hashes.
+- [**Part 2**](#part-2-adding-proof-of-work): Adds Proof-of-Work (PoW) to secure block creation.
+- [**Part 3**](#part-3-persistence-and-cli): Introduces persistent storage using BadgerDB and a CLI.
+- [**Part 4**](#part-4-transactions-and-utxo-model): Implements transactions and the UTXO (Unspent Transaction Output) model.
+- [**Part 5**](#part-5-wallet-module-with-digital-signatures): Adds wallet functionality with ECDSA key pairs and transaction signing.
+- [**Part 6**](#part-6-utxo-persistence-layer): Optimizes UTXO management with a persistent database and CLI reindexing.
+- [**Part 7**](#part-7-merkle-tree): Adds Merkle Tree support to strengthen block integrity.
 
 
 
